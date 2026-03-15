@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 Business Summary Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f0f2f7;
+    color: #2d3748;
+    padding: 24px;
+    min-height: 100vh;
+  }
+  .header {
+    background: linear-gradient(135deg, #1a202c 0%, #2d3748 60%, #4a5568 100%);
+    color: white;
+    padding: 32px 40px;
+    border-radius: 16px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  }
+  .header h1 { font-size: 2rem; font-weight: 700; letter-spacing: 0.5px; }
+  .header .subtitle { font-size: 0.95rem; color: #a0aec0; margin-top: 4px; }
+  .header .date-badge {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 8px 18px;
+    border-radius: 30px;
+    font-size: 0.85rem;
+    color: #e2e8f0;
+  }
+
+  /* KPI Cards */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    margin-bottom: 28px;
+  }
+  .kpi-card {
+    background: white;
+    border-radius: 14px;
+    padding: 24px 22px 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .kpi-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    border-radius: 14px 14px 0 0;
+  }
+  .kpi-card.blue::before { background: linear-gradient(90deg, #3182ce, #63b3ed); }
+  .kpi-card.green::before { background: linear-gradient(90deg, #38a169, #68d391); }
+  .kpi-card.orange::before { background: linear-gradient(90deg, #dd6b20, #f6ad55); }
+  .kpi-card.purple::before { background: linear-gradient(90deg, #6b46c1, #b794f4); }
+  .kpi-card.red::before { background: linear-gradient(90deg, #c53030, #fc8181); }
+  .kpi-label { font-size: 0.78rem; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+  .kpi-value { font-size: 1.9rem; font-weight: 700; color: #1a202c; line-height: 1.1; }
+  .kpi-value.negative { color: #c53030; }
+  .kpi-sub { font-size: 0.82rem; color: #a0aec0; margin-top: 6px; }
+  .kpi-icon {
+    position: absolute;
+    right: 18px;
+    top: 20px;
+    font-size: 2rem;
+    opacity: 0.12;
+  }
+
+  /* Charts Grid */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+    margin-bottom: 28px;
+  }
+  .charts-grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 22px;
+    margin-bottom: 28px;
+  }
+  .chart-card {
+    background: white;
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+  }
+  .chart-card.full-width {
+    grid-column: 1 / -1;
+  }
+  .chart-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .chart-title .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .chart-container { position: relative; height: 260px; }
+  .chart-container.tall { height: 320px; }
+
+  /* Progress Bars */
+  .progress-section { margin-top: 4px; }
+  .progress-item { margin-bottom: 14px; }
+  .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+  .progress-name { font-size: 0.85rem; font-weight: 600; color: #4a5568; }
+  .progress-stats { font-size: 0.78rem; color: #718096; }
+  .progress-bar-bg { background: #edf2f7; border-radius: 6px; height: 8px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; border-radius: 6px; transition: width 0.8s ease; }
+
+  /* Balance Sheet Table */
+  .balance-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  .balance-table th {
+    background: #f7fafc;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #718096;
+    padding: 10px 12px;
+    text-align: left;
+  }
+  .balance-table td { padding: 9px 12px; font-size: 0.85rem; border-bottom: 1px solid #f0f4f8; }
+  .balance-table tr:last-child td { border-bottom: none; }
+  .balance-table .section-header td {
+    background: #ebf4ff;
+    font-weight: 700;
+    color: #2b6cb0;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 7px 12px;
+  }
+  .balance-table .total-row td {
+    background: #1a202c;
+    color: white;
+    font-weight: 700;
+    font-size: 0.92rem;
+  }
+  .balance-table .liab-header td { background: #fff5f5; color: #c53030; }
+  .positive { color: #276749; font-weight: 600; }
+  .negative-val { color: #c53030; font-weight: 600; }
+
+  /* Customer table */
+  .data-table { width: 100%; border-collapse: collapse; }
+  .data-table th {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #718096;
+    padding: 9px 10px;
+    background: #f7fafc;
+    text-align: left;
+    border-bottom: 2px solid #e2e8f0;
+  }
+  .data-table td {
+    padding: 9px 10px;
+    font-size: 0.83rem;
+    border-bottom: 1px solid #f0f4f8;
+    color: #4a5568;
+  }
+  .data-table tr:hover td { background: #f7fafc; }
+  .rank-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: white;
+  }
+  .rank-1 { background: #d4a017; }
+  .rank-2 { background: #9e9e9e; }
+  .rank-3 { background: #cd7f32; }
+  .rank-other { background: #cbd5e0; color: #4a5568; }
+
+  /* Status badges */
+  .badge {
+    display: inline-flex; align-items: center;
+    padding: 2px 9px;
+    border-radius: 12px;
+    font-size: 0.73rem;
+    font-weight: 600;
+  }
+  .badge-green { background: #c6f6d5; color: #276749; }
+  .badge-yellow { background: #fefcbf; color: #744210; }
+  .badge-gray { background: #e2e8f0; color: #4a5568; }
+
+  /* Section label */
+  .section-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #a0aec0;
+    margin-bottom: 16px;
+    margin-top: 4px;
+  }
+
+  .insight-bar {
+    background: linear-gradient(135deg, #ebf8ff, #e6fffa);
+    border-left: 4px solid #3182ce;
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    font-size: 0.85rem;
+    color: #2d3748;
+  }
+  .insight-bar strong { color: #2b6cb0; }
+
+  @media (max-width: 1200px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .charts-grid, .charts-grid-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div>
+    <h1>📊 2026 Business Summary Dashboard</h1>
+    <div class="subtitle">Wekuku &amp; Fine Lumens · B2B + Retail Channels · As of March 2026</div>
+  </div>
+  <div class="date-badge">YTD: Jan – Mar 2026</div>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+  <div class="kpi-card blue">
+    <div class="kpi-label">B2B Total Revenue (YTD)</div>
+    <div class="kpi-value">$76,981</div>
+    <div class="kpi-sub">vs. $240,000 annual target</div>
+    <div class="kpi-icon">💰</div>
+  </div>
+  <div class="kpi-card green">
+    <div class="kpi-label">B2B Total Margin</div>
+    <div class="kpi-value">$21,898</div>
+    <div class="kpi-sub">Avg margin rate: 30.1%</div>
+    <div class="kpi-icon">📈</div>
+  </div>
+  <div class="kpi-card orange">
+    <div class="kpi-label">Overall Annual Target Progress</div>
+    <div class="kpi-value">23.5%</div>
+    <div class="kpi-sub">$95,537 / $405,996 total target</div>
+    <div class="kpi-icon">🎯</div>
+  </div>
+  <div class="kpi-card red">
+    <div class="kpi-label">Net Worth (Balance Sheet)</div>
+    <div class="kpi-value negative">-$89,698</div>
+    <div class="kpi-sub">Assets vs. Liabilities + Owning</div>
+    <div class="kpi-icon">🏦</div>
+  </div>
+</div>
+
+<!-- Row 2: Revenue Chart + Channel Progress -->
+<div class="charts-grid">
+  <div class="chart-card">
+    <div class="chart-title"><span class="dot" style="background:#3182ce"></span>B2B Monthly Revenue &amp; Margin (USD)</div>
+    <div class="chart-container">
+      <canvas id="revenueChart"></canvas>
+    </div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title"><span class="dot" style="background:#805ad5"></span>2026 Annual Target Achievement by Channel</div>
+    <div class="progress-section" id="channelProgress"></div>
+  </div>
+</div>
+
+<!-- Row 3: Top Customers + Donut Charts -->
+<div class="charts-grid">
+  <div class="chart-card">
+    <div class="chart-title"><span class="dot" style="background:#dd6b20"></span>Top 10 B2B Customers by Revenue</div>
+    <div class="chart-container tall">
+      <canvas id="customerChart"></canvas>
+    </div>
+  </div>
+  <div class="charts-grid-3" style="display: flex; flex-direction: column; gap: 22px;">
+    <div class="chart-card" style="flex:1">
+      <div class="chart-title"><span class="dot" style="background:#38a169"></span>Brand Revenue Split</div>
+      <div class="chart-container" style="height:120px">
+        <canvas id="brandChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card" style="flex:1">
+      <div class="chart-title"><span class="dot" style="background:#e53e3e"></span>Payment Status</div>
+      <div class="chart-container" style="height:120px">
+        <canvas id="paymentChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Row 4: Balance Sheet + Insights -->
+<div class="charts-grid">
+  <div class="chart-card">
+    <div class="chart-title"><span class="dot" style="background:#2b6cb0"></span>Balance Sheet Snapshot (USD)</div>
+    <table class="balance-table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th style="text-align:right">USD Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="section-header"><td colspan="2">ASSETS</td></tr>
+        <tr><td>Cash – TD (CAD)</td><td style="text-align:right" class="negative-val">($18,156)</td></tr>
+        <tr><td>Cash – TD (USD)</td><td style="text-align:right" class="positive">$8,160</td></tr>
+        <tr><td>Cash – Wise (CAD)</td><td style="text-align:right" class="positive">$188</td></tr>
+        <tr><td>Total Inventory Value</td><td style="text-align:right" class="positive">$143,369</td></tr>
+        <tr><td>A/R – Uncommon Goods</td><td style="text-align:right" class="positive">$3,900</td></tr>
+        <tr><td>A/R – Simons</td><td style="text-align:right" class="positive">$5,967</td></tr>
+        <tr><td>A/R – Shopify</td><td style="text-align:right" class="positive">$400</td></tr>
+        <tr><td>A/R – B2B (total)</td><td style="text-align:right" class="positive">$18,490</td></tr>
+        <tr><td>Unused Vendor Credit</td><td style="text-align:right" class="positive">$5,510</td></tr>
+        <tr class="section-header liab-header"><td colspan="2">LIABILITIES &amp; OWNING</td></tr>
+        <tr><td>Credit Card – 6879</td><td style="text-align:right" class="negative-val">($320)</td></tr>
+        <tr><td>Credit Card – 8699</td><td style="text-align:right" class="negative-val">($426)</td></tr>
+        <tr><td>Owning (Investor Obligations)</td><td style="text-align:right" class="negative-val">($256,780)</td></tr>
+        <tr class="total-row"><td><strong>NET TOTAL</strong></td><td style="text-align:right"><strong>($89,698)</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title"><span class="dot" style="background:#48bb78"></span>Key Business Insights</div>
+    <div style="margin-top:8px">
+      <div class="insight-bar">
+        <strong>🏆 Top Customer:</strong> Urban Outfitter leads with <strong>$21,975</strong> in B2B revenue (28.5% of total), followed by MOMA at $15,700.
+      </div>
+      <div class="insight-bar">
+        <strong>📦 Brand Focus:</strong> Fine Lumens dominates B2B revenue at <strong>97.9%</strong> ($75,397), Wekuku at 2.1% ($1,584).
+      </div>
+      <div class="insight-bar">
+        <strong>📉 January Peak:</strong> January B2B revenue was <strong>$37,875</strong> — 2.3× higher than February ($16,382). Strong seasonal Q1 start.
+      </div>
+      <div class="insight-bar">
+        <strong>✅ Healthy Margin:</strong> Average B2B margin is <strong>30.1%</strong>, with total margin of $21,898 on $76,981 revenue YTD.
+      </div>
+      <div class="insight-bar">
+        <strong>⚠️ Unpaid Orders:</strong> 67% of B2B orders (146 of 216) are still <strong>pending payment</strong>. Follow-up recommended.
+      </div>
+      <div class="insight-bar">
+        <strong>🎯 Annual Target:</strong> Overall 23.5% complete with B2B at <strong>32.1%</strong> of its $240K target — the strongest channel.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- Data ----
+const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const revenueData = [37874.6, 16382.0, 2795.0, 3204.0, 0, 5575.0, 5575.0, 5575.0, 0, 0, 0, 0];
+const marginData  = [9973.86, 5335.3, 917.17, 867.8, 0, 1601.25, 1601.25, 1601.25, 0, 0, 0, 0];
+
+const channels = [
+  { name: 'B2B',            total: 76980,  target: 240000, pct: 32.1, color: '#3182ce' },
+  { name: 'Fine Lumens',    total: 7375,   target: 48000,  pct: 15.4, color: '#805ad5' },
+  { name: 'Simons',         total: 6721,   target: 36000,  pct: 18.7, color: '#dd6b20' },
+  { name: 'Uncommon Goods', total: 1395,   target: 20004,  pct: 7.0,  color: '#e53e3e' },
+  { name: 'Amazon',         total: 1153,   target: 9996,   pct: 11.5, color: '#38a169' },
+  { name: 'Intent',         total: 1003,   target: 24996,  pct: 4.0,  color: '#d69e2e' },
+  { name: 'Wekuku',         total: 853,    target: 9996,   pct: 8.5,  color: '#319795' },
+  { name: 'Olala',          total: 57,     target: 5004,   pct: 1.1,  color: '#a0aec0' },
+];
+
+const topCustomers = {
+  labels: ['Urban Outfitter','MOMA','unisonhome','Wms & Co.','Clic','Tanguay','MFA Houston','Yu Accessories','Maison Detre','Nantucket Bkwks'],
+  data:   [21975, 15700, 6840, 4125, 4050, 2950, 2240, 1632, 1575, 1370]
+};
+
+// ---- Revenue + Margin Bar/Line Chart ----
+new Chart(document.getElementById('revenueChart'), {
+  type: 'bar',
+  data: {
+    labels: monthLabels,
+    datasets: [
+      {
+        label: 'Revenue (USD)',
+        data: revenueData,
+        backgroundColor: 'rgba(49,130,206,0.75)',
+        borderColor: '#3182ce',
+        borderWidth: 1,
+        borderRadius: 5,
+        yAxisID: 'y'
+      },
+      {
+        label: 'Margin (USD)',
+        data: marginData,
+        type: 'line',
+        borderColor: '#38a169',
+        backgroundColor: 'rgba(56,161,105,0.12)',
+        borderWidth: 2.5,
+        pointRadius: 4,
+        pointBackgroundColor: '#38a169',
+        fill: true,
+        tension: 0.3,
+        yAxisID: 'y'
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } } },
+    scales: {
+      y: { beginAtZero: true, ticks: { callback: v => '$' + v.toLocaleString(), font: { size: 10 } }, grid: { color: '#f0f4f8' } },
+      x: { ticks: { font: { size: 11 } }, grid: { display: false } }
+    }
+  }
+});
+
+// ---- Channel Progress Bars ----
+const progressContainer = document.getElementById('channelProgress');
+channels.forEach(ch => {
+  const color = ch.color;
+  const pct = Math.min(ch.pct, 100);
+  progressContainer.innerHTML += `
+    <div class="progress-item">
+      <div class="progress-header">
+        <span class="progress-name">${ch.name}</span>
+        <span class="progress-stats">$${ch.total.toLocaleString()} / $${ch.target.toLocaleString()} (${ch.pct}%)</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" style="width:${pct}%; background: linear-gradient(90deg, ${color}, ${color}cc);"></div>
+      </div>
+    </div>`;
+});
+
+// ---- Top Customers Horizontal Bar ----
+new Chart(document.getElementById('customerChart'), {
+  type: 'bar',
+  data: {
+    labels: topCustomers.labels,
+    datasets: [{
+      label: 'Revenue (USD)',
+      data: topCustomers.data,
+      backgroundColor: [
+        '#3182ce','#4299e1','#63b3ed','#90cdf4','#bee3f8',
+        '#3182ce88','#4299e188','#63b3ed88','#90cdf488','#bee3f888'
+      ],
+      borderRadius: 5,
+      borderSkipped: false
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ' $' + ctx.parsed.x.toLocaleString() } }
+    },
+    scales: {
+      x: { beginAtZero: true, ticks: { callback: v => '$' + v.toLocaleString(), font: { size: 10 } }, grid: { color: '#f0f4f8' } },
+      y: { ticks: { font: { size: 11 } }, grid: { display: false } }
+    }
+  }
+});
+
+// ---- Brand Donut ----
+new Chart(document.getElementById('brandChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Fine Lumens', 'Wekuku'],
+    datasets: [{
+      data: [75397, 1584],
+      backgroundColor: ['#3182ce', '#e2e8f0'],
+      borderWidth: 2,
+      borderColor: '#fff'
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '70%',
+    plugins: {
+      legend: { position: 'right', labels: { boxWidth: 10, font: { size: 11 } } },
+      tooltip: { callbacks: { label: ctx => ' $' + ctx.parsed.toLocaleString() } }
+    }
+  }
+});
+
+// ---- Payment Status Donut ----
+new Chart(document.getElementById('paymentChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Pending', 'Paid', 'Paid (no ship)'],
+    datasets: [{
+      data: [146, 58, 12],
+      backgroundColor: ['#fc8181', '#68d391', '#f6ad55'],
+      borderWidth: 2,
+      borderColor: '#fff'
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '70%',
+    plugins: {
+      legend: { position: 'right', labels: { boxWidth: 10, font: { size: 11 } } }
+    }
+  }
+});
+</script>
+</body>
+</html>
